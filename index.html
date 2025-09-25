@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager</title>
+    <meta name="description" content="A modern task management application that works offline and syncs across devices">
+    <meta name="theme-color" content="#667eea">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- iOS specific meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Task Manager">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="script.js" as="script">
+    <link rel="preload" href="styles.css" as="style">
+</head>
+<body>
+    <div class="container">
+        <!-- Install prompt -->
+        <div id="installPrompt" class="install-prompt" style="display: none;">
+            <div class="install-content">
+                <i class="fas fa-mobile-alt"></i>
+                <span>Install this app for a better experience!</span>
+                <button id="installBtn" class="install-btn">Install</button>
+                <button id="dismissInstall" class="dismiss-btn">&times;</button>
+            </div>
+        </div>
+
+        <!-- Network status -->
+        <div id="networkStatus" class="network-status" style="display: none;">
+            <i class="fas fa-wifi-slash"></i>
+            <span>You're offline. Changes will sync when you're back online.</span>
+        </div>
+
+        <header class="header">
+            <h1><i class="fas fa-tasks"></i> Task Manager</h1>
+            <div class="header-actions">
+                <button class="add-btn" id="addTaskBtn">
+                    <i class="fas fa-plus"></i> Add New Task
+                </button>
+            </div>
+        </header>
+
+        <!-- Task Form Modal -->
+        <div class="modal" id="taskModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modalTitle">Add New Task</h2>
+                    <span class="close" id="closeModal">&times;</span>
+                </div>
+                <form id="taskForm">
+                    <div class="form-group">
+                        <label for="assignee">Who will do the job:</label>
+                        <input type="text" id="assignee" name="assignee" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="taskDescription">What needs to be done:</label>
+                        <textarea id="taskDescription" name="taskDescription" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="dueDate">Date to be done:</label>
+                        <input type="date" id="dueDate" name="dueDate" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="comments">Comments:</label>
+                        <textarea id="comments" name="comments" rows="2" placeholder="Additional notes or comments..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="status">Status:</label>
+                        <select id="status" name="status">
+                            <option value="pending">Pending</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+                        <button type="submit" class="btn-primary" id="submitBtn">Add Task</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Filter and Search -->
+        <div class="controls">
+            <div class="search-container">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search tasks...">
+            </div>
+            <div class="filter-container">
+                <select id="statusFilter">
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tasks List -->
+        <div class="tasks-container">
+            <div id="tasksList" class="tasks-list">
+                <!-- Tasks will be dynamically inserted here -->
+            </div>
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <i class="fas fa-clipboard-list"></i>
+                <h3>No tasks yet</h3>
+                <p>Click "Add New Task" to get started!</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
