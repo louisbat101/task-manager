@@ -5,6 +5,8 @@ class TaskManager {
         this.currentEditId = null;
         this.storageKey = 'taskManager_tasks';
         this.syncEnabled = false;
+        this.notificationsEnabled = false;
+        this.subscription = null;
         this.init();
     }
 
@@ -17,6 +19,7 @@ class TaskManager {
         this.setupOfflineSupport();
         this.setupInstallPrompt();
         this.updateNetworkStatus();
+        this.initializeNotifications();
     }
 
     async loadTasks() {
@@ -159,6 +162,8 @@ class TaskManager {
         document.getElementById('exportBtn').addEventListener('click', () => this.exportTasks());
         document.getElementById('importBtn').addEventListener('click', () => this.importTasks());
         document.getElementById('shareBtn').addEventListener('click', () => this.shareApp());
+        document.getElementById('notificationBtn').addEventListener('click', () => this.handleNotificationToggle());
+        document.getElementById('sendNotificationBtn').addEventListener('click', () => this.sendNotification());
         
         // Modal click outside to close
         document.getElementById('taskModal').addEventListener('click', (e) => {
@@ -251,6 +256,9 @@ class TaskManager {
         this.saveTasks();
         this.renderTasks();
         this.updateEmptyState();
+        
+        // Check for overdue tasks after creating
+        setTimeout(() => this.checkOverdueTasks(), 1000);
         
         // Show success message (optional)
         this.showMessage('Task created successfully!', 'success');
@@ -353,11 +361,15 @@ class TaskManager {
             <button class="sync-btn" id="syncBtn" title="Toggle Cloud Sync">
                 <i class="fas fa-cloud"></i>
             </button>
+            <button class="notification-btn" id="notificationBtn" title="Toggle Notifications">
+                <i class="fas fa-bell"></i>
+            </button>
             <div class="dropdown">
                 <button class="dropdown-btn" title="More Options">
                     <i class="fas fa-ellipsis-v"></i>
                 </button>
                 <div class="dropdown-content">
+                    <button id="sendNotificationBtn"><i class="fas fa-bullhorn"></i> Send Notification</button>
                     <button id="exportBtn"><i class="fas fa-download"></i> Export Tasks</button>
                     <button id="importBtn"><i class="fas fa-upload"></i> Import Tasks</button>
                     <button id="shareBtn"><i class="fas fa-share"></i> Share App</button>
@@ -441,6 +453,178 @@ class TaskManager {
                 prompt('Copy this URL to share the app:', url);
             });
         }
+    }
+
+    // Notification functionality
+    async initializeNotifications() {
+        if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+            console.log('Notifications not supported');
+            return;
+        }
+
+        // Check if notifications are already enabled
+        this.notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
+        if (this.notificationsEnabled) {
+            document.getElementById('notificationBtn').classList.add('active');
+            await this.setupPushSubscription();
+        }
+
+        // Listen for service worker messages
+        navigator.serviceWorker.addEventListener('message', event => {
+            if (event.data.type === 'NOTIFICATION_SYNC') {
+                this.handleNotificationSync();
+            }
+        });
+    }
+
+    async handleNotificationToggle() {
+        if (!this.notificationsEnabled) {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                this.notificationsEnabled = true;
+                localStorage.setItem('notificationsEnabled', 'true');
+                document.getElementById('notificationBtn').classList.add('active');
+                await this.setupPushSubscription();
+                this.showMessage('Notifications enabled!', 'success');
+            } else {
+                this.showMessage('Notifications permission denied', 'error');
+            }
+        } else {
+            this.notificationsEnabled = false;
+            localStorage.setItem('notificationsEnabled', 'false');
+            document.getElementById('notificationBtn').classList.remove('active');
+            await this.unsubscribeFromPush();
+            this.showMessage('Notifications disabled', 'info');
+        }
+    }
+
+    async setupPushSubscription() {
+        if (!navigator.serviceWorker.ready) {
+            await navigator.serviceWorker.ready;
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        
+        // VAPID key for push notifications (you would need to generate this)
+        const publicVapidKey = 'BMqSvZTLJm0-qST2HaZnCF1NZW1rXnCRIZJxBhsKfgD7QHC_-jh5cYJ7m4FN6NfCeaLZz-VBb1_H4C2LtWqFKYw';
+
+        try {
+            this.subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: this.urlBase64ToUint8Array(publicVapidKey)
+            });
+
+            // Store subscription in localStorage for demo purposes
+            // In production, you'd send this to your server
+            localStorage.setItem('pushSubscription', JSON.stringify(this.subscription));
+            
+            console.log('Push subscription created:', this.subscription);
+        } catch (error) {
+            console.error('Failed to subscribe to push notifications:', error);
+        }
+    }
+
+    async unsubscribeFromPush() {
+        if (this.subscription) {
+            await this.subscription.unsubscribe();
+            this.subscription = null;
+            localStorage.removeItem('pushSubscription');
+        }
+    }
+
+    urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    async sendNotification() {
+        if (!this.notificationsEnabled) {
+            this.showMessage('Please enable notifications first!', 'error');
+            return;
+        }
+
+        const message = prompt('Enter notification message:', 'You have new tasks to review!');
+        if (!message) return;
+
+        try {
+            // For demo purposes, we'll show a local notification
+            // In production, you'd send this to a server that broadcasts to all subscribers
+            const registration = await navigator.serviceWorker.ready;
+            
+            await registration.showNotification('Task Manager Broadcast', {
+                body: message,
+                icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTIiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl8xXzEpIi8+CjxwYXRoIGQ9Ik0xNiAyMEwyMCAyNEwyOCAxNiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHA+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfMV8xIiB4MT0iMCIgeTE9IjAiIHgyPSI0OCIgeTI9IjQ4IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiM2NjdFRUEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzY0QkEyIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+',
+                badge: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTIiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl8xXzEpIi8+CjxwYXRoIGQ9Ik0xNiAyMEwyMCAyNEwyOCAxNiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHA+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfMV8xIiB4MT0iMCIgeTE9IjAiIHgyPSI0OCIgeTI9IjQ4IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiM2NjdFRUEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzY0QkEyIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+',
+                tag: 'broadcast-notification',
+                data: { url: '/' },
+                actions: [
+                    {
+                        action: 'open',
+                        title: 'Open App'
+                    },
+                    {
+                        action: 'dismiss',
+                        title: 'Dismiss'
+                    }
+                ]
+            });
+
+            this.showMessage('Notification sent to all users!', 'success');
+            
+            // Also send automatic notifications for overdue tasks
+            this.checkOverdueTasks();
+            
+        } catch (error) {
+            console.error('Failed to send notification:', error);
+            this.showMessage('Failed to send notification', 'error');
+        }
+    }
+
+    checkOverdueTasks() {
+        if (!this.notificationsEnabled) return;
+
+        const now = new Date();
+        const overdueTasks = this.tasks.filter(task => {
+            const dueDate = new Date(task.dueDate);
+            return dueDate < now && task.status !== 'completed';
+        });
+
+        if (overdueTasks.length > 0) {
+            const message = `You have ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}!`;
+            this.sendLocalNotification('Overdue Tasks', message);
+        }
+    }
+
+    async sendLocalNotification(title, body, data = {}) {
+        if (!this.notificationsEnabled) return;
+
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.showNotification(title, {
+                body,
+                icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTIiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl8xXzEpIi8+CjxwYXRoIGQ9Ik0xNiAyMEwyMCAyNEwyOCAxNiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHA+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfMV8xIiB4MT0iMCIgeTE9IjAiIHgyPSI0OCIgeTI9IjQ4IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiM2NjdFRUEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzY0QkEyIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+',
+                badge: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTIiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl8xXzEpIi8+CjxwYXRoIGQ9Ik0xNiAyMEwyMCAyNEwyOCAxNiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHA+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfMV8xIiB4MT0iMCIgeTE9IjAiIHgyPSI0OCIgeTI9IjQ4IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiM2NjdFRUEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzY0QkEyIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+',
+                tag: 'task-reminder',
+                data: { url: '/', ...data }
+            });
+        } catch (error) {
+            console.error('Failed to send local notification:', error);
+        }
+    }
+
+    handleNotificationSync() {
+        // Handle background sync for notifications
+        this.checkOverdueTasks();
     }
 
     renderTasks() {

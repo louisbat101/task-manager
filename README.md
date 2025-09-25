@@ -1,6 +1,6 @@
 # Task Manager App
 
-A modern, responsive task management application built with HTML, CSS, and JavaScript. Works offline and can be accessed from any device, anywhere in the world.
+A modern, responsive task management application built with HTML, CSS, and JavaScript. Works offline and can be accessed from any device, anywhere in the world. Now includes push notifications to keep everyone updated!
 
 ## 🌟 Features
 
@@ -11,11 +11,45 @@ A modern, responsive task management application built with HTML, CSS, and JavaS
 - **Status Tracking**: Monitor task progress (Pending, In Progress, Completed)
 - **Search & Filter**: Easily find tasks by searching or filtering by status
 - **Cloud Sync**: Sync data across all your devices (optional)
+- **Push Notifications**: Send notifications to all app users
+- **Overdue Alerts**: Automatic notifications for overdue tasks
 - **Offline Support**: Works without internet connection
 - **PWA Ready**: Install as a mobile app
 - **Responsive Design**: Works great on desktop and mobile devices
 - **Export/Import**: Backup and restore your tasks
-- **Overdue Alerts**: Visual indicators for overdue tasks
+
+## 🔔 Notification Features
+
+### For Users:
+- **Enable Notifications**: Click the bell icon to enable push notifications
+- **Overdue Reminders**: Get notified when tasks become overdue
+- **Team Updates**: Receive notifications when others send updates
+- **Custom Alerts**: Set up personalized notification preferences
+
+### For Administrators:
+- **Broadcast Messages**: Send notifications to all app users
+- **Team Coordination**: Keep everyone informed about project updates
+- **Deadline Reminders**: Automatic notifications for approaching deadlines
+- **Status Updates**: Notify team when tasks are completed
+
+## 📱 How to Enable Notifications
+
+1. **Open the app** on any device
+2. **Click the bell icon** (🔔) in the top right
+3. **Allow notifications** when prompted by your browser
+4. **You're all set!** You'll now receive:
+   - Overdue task reminders
+   - Team broadcast messages
+   - Important updates
+
+## 📢 Sending Notifications (Admin)
+
+If you're managing a team:
+1. **Enable notifications** first (bell icon)
+2. **Click the menu** (⋮) next to the bell icon
+3. **Select "Send Notification"**
+4. **Type your message** and press OK
+5. **All users** with notifications enabled will receive it!
 
 ## 🚀 Quick Start
 
